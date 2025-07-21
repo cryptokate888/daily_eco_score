@@ -1,4 +1,3 @@
-// pages/api/frame.ts
 import { NextApiRequest, NextApiResponse } from "next";
 
 const COMMUTE_CO2 = {
@@ -16,31 +15,54 @@ const FOOD_CO2 = {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Get current step and saved answers from the state sent by the Frame client
   const step = req.body.state?.step || "start";
-  const answers = req.body.state?.answers || {};
+  // Clone answers or start fresh
+  const answers = { ...(req.body.state?.answers || {}) };
 
   let imageUrl = "https://yourcdn.com/frame.png"; // Placeholder OG image
-  let buttons = [];
-  let nextState = {};
+  let buttons: string[] = [];
+  let nextState: any = {};
 
   if (step === "start") {
     buttons = ["Start"];
-    nextState = { step: "commute" };
+    nextState = { step: "commute", answers };
   } else if (step === "commute") {
     buttons = Object.keys(COMMUTE_CO2);
-    nextState = { step: "diet" };
-    answers["commute"] = req.body.buttonIndex;
+
+    // Record user answer based on the button clicked index
+    const idx = req.body.buttonIndex;
+    if (typeof idx === "number" && buttons[idx]) {
+      answers["commute"] = idx;
+      nextState = { step: "diet", answers };
+    } else {
+      // Invalid index, retry same step
+      nextState = { step: "commute", answers };
+    }
   } else if (step === "diet") {
     buttons = Object.keys(FOOD_CO2);
-    answers["diet"] = req.body.buttonIndex;
 
-    const commuteType = Object.keys(COMMUTE_CO2)[answers["commute"]];
-    const dietType = Object.keys(FOOD_CO2)[req.body.buttonIndex];
+    const idx = req.body.buttonIndex;
+    if (typeof idx === "number" && buttons[idx]) {
+      answers["diet"] = idx;
 
-    const totalCO2 = COMMUTE_CO2[commuteType] + FOOD_CO2[dietType];
-    imageUrl = `https://yourcdn.com/results?co2=${totalCO2}`; // optional image customization
-    buttons = ["Share", "Restart"];
-    nextState = { step: "start" };
+      // Calculate CO2 using selected answers
+      const commuteType = Object.keys(COMMUTE_CO2)[answers["commute"]];
+      const dietType = Object.keys(FOOD_CO2)[answers["diet"]];
+
+      const totalCO2 = COMMUTE_CO2[commuteType] + FOOD_CO2[dietType];
+      imageUrl = `https://yourcdn.com/results?co2=${totalCO2.toFixed(2)}`; // You can customize your OG image URL
+
+      buttons = ["Share", "Restart"];
+      nextState = { step: "start", answers: {} }; // Reset after results
+    } else {
+      // Invalid index, retry diet step
+      nextState = { step: "diet", answers };
+    }
+  } else {
+    // Unknown step, restart
+    buttons = ["Start"];
+    nextState = { step: "commute", answers: {} };
   }
 
   res.status(200).json({
