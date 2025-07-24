@@ -1,3 +1,7 @@
+if (req.method !== "POST") {
+  return res.status(405).json({ error: "Method not allowed" });
+}
+
 import { NextApiRequest, NextApiResponse } from "next";
 
 const COMMUTE_CO2 = {
@@ -20,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Clone answers or start fresh
   const answers = { ...(req.body.state?.answers || {}) };
 
-  let imageUrl = "https://yourcdn.com/frame.png"; // Placeholder OG image
+  let imageUrl = "https://github.com/cryptokate888/daily_eco_score/blob/main/Poster%20-%20Eco%20Score%20Tracking%20App.png"; // Placeholder OG image
   let buttons: string[] = [];
   let nextState: any = {};
 
